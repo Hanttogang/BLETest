@@ -30,6 +30,14 @@
         android:theme="@style/Theme.BLEtest"
         tools:targetApi="31">
 
+        <service android:name=".service.BluetoothLeService" android:enabled="true"/>
+
+        <activity
+            android:name=".activity.DeviceControlActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activity.DeviceScanActivity"
+            android:exported="false" />
         <activity
             android:name=".activity.MainActivity"
             android:exported="true">
