@@ -7,17 +7,15 @@ import android.app.Service
 import android.bluetooth.*
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Build
+import android.os.*
 import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
-import android.os.Handler
-import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
 import android.view.LayoutInflater
@@ -25,6 +23,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -42,8 +41,14 @@ private const val TAG = "MainActivity"
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
 
-    private val REQUEST_CODE_BLUETOOTH_SCAN = 830
+    private var deviceName: String? = null
+    private var deviceAddress: String? = null
+
+
+
     private val BLUETOOTH_CONNECT_PERMISSION_REQUEST_CODE = 111
+    private val REQUEST_CODE_BLUETOOTH_SCAN = 222
+    private val ACCESS_FINE_LOCATION_PERMISSION_REQUEST_CODE = 333
 
 
     private lateinit var leDeviceListAdapter: LeDeviceListAdapter
@@ -85,7 +90,18 @@ class MainActivity : AppCompatActivity() {
     private var arrayDevices = ArrayList<BluetoothDevice>()
     private val handler = Handler()
 
+
+
+
+
+
+
+
     private val scanCallback = object : ScanCallback() {
+
+
+
+
         override fun onScanFailed(errorCode: Int) {
             super.onScanFailed(errorCode)
             Log.e(TAG, "onScanFailed - 스캔 코드: $errorCode")
@@ -93,12 +109,18 @@ class MainActivity : AppCompatActivity() {
 
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult?) {
+
+
+
             result?.device?.let { device ->
+
                 if (device.type == BluetoothDevice.DEVICE_TYPE_LE && !arrayDevices.contains(device)) { //기기 타입이 LE 이고, contains 해보았을 때 없는 기기를 배열에 추가
                     arrayDevices.add(device)
                     Log.d(TAG, "onScanResult: Added BLE device: ${device.name}, ${device.address}")
                 }
             }
+
+
         }
 
         @SuppressLint("MissingPermission")
@@ -115,7 +137,7 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    private val SCAN_PERIOD = 60000
+    @RequiresApi(Build.VERSION_CODES.O)
     @SuppressLint("MissingPermission")
     private fun scanLeDevice(enable: Boolean) {
         when (enable) {
@@ -127,9 +149,24 @@ class MainActivity : AppCompatActivity() {
 
                 }, SCAN_PERIOD.toLong())
 
-                mScanning = true
-                arrayDevices.clear()
-                bluetoothAdapter!!.bluetoothLeScanner.startScan(scanCallback)
+//--------------------------------------------------------------------------------------------------
+//BLE 5.0 스캔하게 하는 코드.
+                val filters: MutableList<ScanFilter> = ArrayList()
+                val scanFilter: ScanFilter? = ScanFilter.Builder().build()
+                filters.add(scanFilter!!)
+
+                val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER).setLegacy(false).build()
+
+                Handler(Looper.getMainLooper()).postDelayed({
+                    bluetoothAdapter?.bluetoothLeScanner?.stopScan(scanCallback)
+                }, 60000)
+
+                bluetoothAdapter?.bluetoothLeScanner?.startScan(filters, settings, scanCallback)
+//이전코드--------------------------------------------------------------------------------------------
+//                mScanning = true
+//                arrayDevices.clear()
+//                bluetoothAdapter!!.bluetoothLeScanner.startScan(scanCallback)
+//--------------------------------------------------------------------------------------------------
 
             }
             else -> {
@@ -141,6 +178,7 @@ class MainActivity : AppCompatActivity() {
     }
     
 
+    @RequiresApi(Build.VERSION_CODES.O)
     @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -179,39 +217,43 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkPermissionBluetooth() {
 
-        //권한 체크 및 요청
+        //권한 체크 및 요청 ADMIN 으로 해야함
         if (ActivityCompat.checkSelfPermission(
                 this,
-                Manifest.permission.BLUETOOTH_SCAN
+                Manifest.permission.BLUETOOTH_ADMIN
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            Toast.makeText(this@MainActivity,"BLE 탐색을 위한 권한이 필요합니다.",Toast.LENGTH_SHORT).show()
-            Log.d(TAG,"BLE 권한 요청")
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.BLUETOOTH_SCAN), REQUEST_CODE_BLUETOOTH_SCAN)
+            Toast.makeText(this@MainActivity, "BLE 탐색을 위한 권한이 필요합니다.", Toast.LENGTH_SHORT).show()
+            Log.d(TAG, "BLE 권한 요청")
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.BLUETOOTH_ADMIN),
+                REQUEST_CODE_BLUETOOTH_SCAN
+            )
+
             return
-        } else {
-            Toast.makeText(this@MainActivity,"BLE 탐색을 위한 권한이 존재합니다.",Toast.LENGTH_SHORT).show()
         }
+
 
 
         if (ActivityCompat.checkSelfPermission(
                 this@MainActivity,
-                Manifest.permission.BLUETOOTH_CONNECT
+                Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            Toast.makeText(this@MainActivity,"BLE 연결을 위한 권한이 필요합니다.",Toast.LENGTH_SHORT).show()
+
+            Toast.makeText(this@MainActivity, "BLE 연결을 위한 위치 권한이 필요합니다.", Toast.LENGTH_SHORT).show()
             ActivityCompat.requestPermissions(
                 this,
-                arrayOf(Manifest.permission.BLUETOOTH_CONNECT),
-                BLUETOOTH_CONNECT_PERMISSION_REQUEST_CODE
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                ACCESS_FINE_LOCATION_PERMISSION_REQUEST_CODE
             )
             return
-        } else{
-            Toast.makeText(this@MainActivity,"BLE 연결을 위한 권한이 존재합니다.",Toast.LENGTH_SHORT).show()
         }
     }
 
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun selectDevice(position: Int) {
         val device = arrayDevices.get(position)
         val intent = Intent(this, DeviceControlActivity::class.java)
@@ -220,12 +262,6 @@ class MainActivity : AppCompatActivity() {
         if (mScanning) scanLeDevice(false)
         startActivity(intent)
     }
-
-
-
-
-
-
 
 
     override fun onDestroy() {
