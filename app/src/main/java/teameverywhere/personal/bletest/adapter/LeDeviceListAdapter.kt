@@ -7,42 +7,59 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
+import android.widget.ImageButton
 import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
 import teameverywhere.personal.bletest.R
+import teameverywhere.personal.bletest.activity.MainActivity
 
-class LeDeviceListAdapter : BaseAdapter() {
-    private val deviceList = mutableListOf<BluetoothDevice>()
+class LeDeviceListAdapter (
+    var context: MainActivity,
+    var deviceNameList: ArrayList<String>,
+    var deviceAddressList: ArrayList<String>,
+    var onItemClicked: OnItemClicked
+) : RecyclerView.Adapter<LeDeviceListAdapter.DeviceManageViewHolder>() {
 
-    fun addDevice(device: BluetoothDevice) {
-        if (!deviceList.contains(device)) {
-            deviceList.add(device)
+    var selectedItemPosition = RecyclerView.NO_POSITION
+
+    interface OnItemClicked{
+        fun selectDevice(p:Int)
+    }
+
+    inner class DeviceManageViewHolder(parent: ViewGroup) : RecyclerView.ViewHolder(
+        LayoutInflater.from(parent.context).inflate(R.layout.item_device, parent, false)) {
+        val deviceName: TextView = itemView.findViewById(R.id.tvDeviceName)
+        val deviceAddress: TextView = itemView.findViewById(R.id.tvDeviceAddress)
+        val imgBtnSelectDevice: ImageButton = itemView.findViewById(R.id.imgBtnSelectDevice)
+
+    }
+
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DeviceManageViewHolder {
+        return DeviceManageViewHolder(parent)
+    }
+
+    override fun getItemCount(): Int {
+        return deviceNameList.size
+    }
+
+    override fun onBindViewHolder(holder: DeviceManageViewHolder, position: Int) {
+        val deviceName = deviceNameList[position]
+        val deviceAddress = deviceAddressList[position]
+
+        holder.deviceName.text = deviceName
+        holder.deviceAddress.text = deviceAddress
+
+        holder.imgBtnSelectDevice.setOnClickListener {
+            val previousItemPosition = selectedItemPosition
+            selectedItemPosition = position
+
+            if (previousItemPosition != RecyclerView.NO_POSITION) {
+                notifyItemChanged(previousItemPosition)
+            }
+
+            onItemClicked.selectDevice(selectedItemPosition)
         }
     }
 
-    override fun getCount(): Int {
-        return deviceList.size
-    }
-
-    override fun getItem(position: Int): Any {
-        return deviceList[position]
-    }
-
-    override fun getItemId(position: Int): Long {
-        return position.toLong()
-    }
-
-    @SuppressLint("MissingPermission")
-    override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
-        val device = getItem(position) as BluetoothDevice
-        val view: View = convertView ?: LayoutInflater.from(parent?.context)
-            .inflate(R.layout.item_device, parent, false)
-
-        val deviceNameTextView: TextView = view.findViewById(R.id.deviceNameTextView)
-        val deviceAddressTextView: TextView = view.findViewById(R.id.deviceAddressTextView)
-
-        deviceNameTextView.text = device.name ?: "Unknown Device"
-        deviceAddressTextView.text = device.address
-
-        return view
-    }
 }

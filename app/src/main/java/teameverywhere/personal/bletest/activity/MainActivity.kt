@@ -2,36 +2,25 @@ package teameverywhere.personal.bletest.activity
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.ListActivity
-import android.app.Service
 import android.bluetooth.*
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.*
 import androidx.appcompat.app.AppCompatActivity
-import android.provider.Settings
 import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import teameverywhere.personal.bletest.R
 import teameverywhere.personal.bletest.adapter.LeDeviceListAdapter
 import teameverywhere.personal.bletest.databinding.ActivityMainBinding
-import teameverywhere.personal.bletest.util.BluetoothUtils.Companion.findResponseCharacteristic
 import java.util.*
 
 private const val SCAN_PERIOD: Long = 10000
@@ -44,6 +33,8 @@ class MainActivity : AppCompatActivity() {
     private var deviceName: String? = null
     private var deviceAddress: String? = null
 
+//    var deviceNameList: ArrayList<String>
+//    var deviceAddressList: ArrayList<String>
 
 
     private val BLUETOOTH_CONNECT_PERMISSION_REQUEST_CODE = 111
@@ -51,10 +42,17 @@ class MainActivity : AppCompatActivity() {
     private val ACCESS_FINE_LOCATION_PERMISSION_REQUEST_CODE = 333
 
 
-    private lateinit var leDeviceListAdapter: LeDeviceListAdapter
     lateinit var bluetoothLeScanner : BluetoothLeScanner
 
     lateinit var mGatt: BluetoothGatt
+
+
+
+
+    private lateinit var scanDeviceList: RecyclerView
+    private lateinit var leDeviceListAdapter: LeDeviceListAdapter
+
+
     fun connect(){
         if (ActivityCompat.checkSelfPermission(this@MainActivity, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {  }
 
@@ -99,9 +97,6 @@ class MainActivity : AppCompatActivity() {
 
     private val scanCallback = object : ScanCallback() {
 
-
-
-
         override fun onScanFailed(errorCode: Int) {
             super.onScanFailed(errorCode)
             Log.e(TAG, "onScanFailed - 스캔 코드: $errorCode")
@@ -113,10 +108,14 @@ class MainActivity : AppCompatActivity() {
 
 
             result?.device?.let { device ->
-
+//device.type == BluetoothDevice.DEVICE_TYPE_LE &&
                 if (device.type == BluetoothDevice.DEVICE_TYPE_LE && !arrayDevices.contains(device)) { //기기 타입이 LE 이고, contains 해보았을 때 없는 기기를 배열에 추가
                     arrayDevices.add(device)
                     Log.d(TAG, "onScanResult: Added BLE device: ${device.name}, ${device.address}")
+                    Log.d(TAG, "arrayDevices: $arrayDevices")
+
+                    addDeviceToRVList(arrayDevices)
+
                 }
             }
 
@@ -159,9 +158,11 @@ class MainActivity : AppCompatActivity() {
 
                 Handler(Looper.getMainLooper()).postDelayed({
                     bluetoothAdapter?.bluetoothLeScanner?.stopScan(scanCallback)
+
                 }, 60000)
 
                 bluetoothAdapter?.bluetoothLeScanner?.startScan(filters, settings, scanCallback)
+
 //이전코드--------------------------------------------------------------------------------------------
 //                mScanning = true
 //                arrayDevices.clear()
@@ -262,6 +263,47 @@ class MainActivity : AppCompatActivity() {
         if (mScanning) scanLeDevice(false)
         startActivity(intent)
     }
+
+
+
+    @SuppressLint("MissingPermission")
+    private fun addDeviceToRVList(devices: ArrayList<BluetoothDevice>) = with(binding){
+
+        scanDeviceList = rvDeviceList
+
+
+        val deviceNameList: ArrayList<String> = ArrayList()
+        val deviceAddressList: ArrayList<String> = ArrayList()
+
+        leDeviceListAdapter = LeDeviceListAdapter(this@MainActivity, deviceNameList, deviceAddressList, object : LeDeviceListAdapter.OnItemClicked {
+
+            override fun selectDevice(position: Int) {
+                //gatt 구현하고 연결하는 코드 작성하기
+            }
+        })
+
+
+        binding.rvDeviceList.adapter = leDeviceListAdapter
+        val layoutManager = LinearLayoutManager(this@MainActivity)
+        binding.rvDeviceList.layoutManager = layoutManager
+
+
+        for (device in devices) {
+            deviceNameList.add(device.name)
+            deviceAddressList.add(device.address)
+        }
+
+
+        leDeviceListAdapter.notifyDataSetChanged()
+
+
+    }
+
+
+
+
+
+
 
 
     override fun onDestroy() {
