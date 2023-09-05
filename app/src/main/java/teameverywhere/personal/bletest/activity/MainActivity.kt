@@ -12,6 +12,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.*
+import android.provider.Settings
 import androidx.appcompat.app.AppCompatActivity
 import android.util.Log
 import android.widget.Toast
@@ -21,9 +22,10 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import teameverywhere.personal.bletest.adapter.LeDeviceListAdapter
 import teameverywhere.personal.bletest.databinding.ActivityMainBinding
+import teameverywhere.personal.bletest.util.BluetoothUtils.Companion.findResponseCharacteristic
 import java.util.*
 
-private const val SCAN_PERIOD: Long = 10000
+private const val SCAN_PERIOD: Long = 20000
 private const val TAG = "MainActivity"
 
 
@@ -43,24 +45,12 @@ class MainActivity : AppCompatActivity() {
 
 
     lateinit var bluetoothLeScanner : BluetoothLeScanner
-
-    lateinit var mGatt: BluetoothGatt
-
-
-
-
     private lateinit var scanDeviceList: RecyclerView
     private lateinit var leDeviceListAdapter: LeDeviceListAdapter
 
 
-    fun connect(){
-        if (ActivityCompat.checkSelfPermission(this@MainActivity, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {  }
-
-    }
-    fun disConnect(){
-        if (ActivityCompat.checkSelfPermission(this@MainActivity, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {  }
-        mGatt?.disconnect()
-    }
+    //GATT 연결 관련
+    private var bluetoothGatt: BluetoothGatt? = null
 
 
     //스캔에 필요한 코드 정의
@@ -254,11 +244,13 @@ class MainActivity : AppCompatActivity() {
     }
 
 
+    @SuppressLint("MissingPermission")
     @RequiresApi(Build.VERSION_CODES.O)
     private fun selectDevice(position: Int) {
         val device = arrayDevices.get(position)
         val intent = Intent(this, DeviceControlActivity::class.java)
         intent.putExtra("address", device.getAddress())
+
 
         if (mScanning) scanLeDevice(false)
         startActivity(intent)
@@ -279,6 +271,9 @@ class MainActivity : AppCompatActivity() {
 
             override fun selectDevice(position: Int) {
                 //gatt 구현하고 연결하는 코드 작성하기
+                val selectedDeviceName = deviceNameList[position]
+                connectToDevice(selectedDeviceName)
+
             }
         })
 
@@ -297,13 +292,71 @@ class MainActivity : AppCompatActivity() {
         leDeviceListAdapter.notifyDataSetChanged()
 
 
+
     }
 
 
 
+//--------------------------------------------------------------------------------------------------
+
+    @SuppressLint("MissingPermission")
+    private fun connectToDevice(deviceName: String) {
+        // 선택한 기기 이름으로 BluetoothDevice를 찾아옵니다.
+        val selectedDevice = findDeviceByName(deviceName)
+
+        if (selectedDevice != null) {
+            // GATT 서버에 연결합니다.
+            bluetoothGatt = selectedDevice.connectGatt(this, false, gattCallback)
+            //selectedDevice 는 여기서 주소로 나타난다.
+            Toast.makeText(this, "기기 ${selectedDevice.name} 와 연결 되었습니다.", Toast.LENGTH_SHORT).show()
+
+        } else {
+            // 장치를 찾지 못한 경우 처리
+            Toast.makeText(this, "기기를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun closeBluetoothGatt(gatt: BluetoothGatt?) {
+        gatt?.close()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun findDeviceByName(deviceName: String): BluetoothDevice? {
+        // 디바이스 목록에서 이름으로 디바이스를 찾아옵니다.
+        for (device in arrayDevices) {
+            if (device.name == deviceName) {
+                return device
+            }
+        }
+        return null
+    }
+
+    private val gattCallback = object : BluetoothGattCallback() {
+        override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
+            super.onConnectionStateChange(gatt, status, newState)
+
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+
+//                Toast.makeText(this@MainActivity, "기기와 연결되었습니다.", Toast.LENGTH_SHORT).show()
+
+                // 연결 성공
+                // 이제 GATT 서버와 서비스 검색 등의 작업을 수행할 수 있습니다.
+                // 예: gatt?.discoverServices()
+                
+                
+
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                Toast.makeText(this@MainActivity, "연결이 해제되었습니다.", Toast.LENGTH_SHORT).show()
 
 
+                // 연결 해제
+                // 필요한 처리를 수행합니다.
+            }
+        }
 
+        // 다른 GATT 이벤트 처리 메서드들도 구현 가능합니다.
+    }
 
 
     override fun onDestroy() {

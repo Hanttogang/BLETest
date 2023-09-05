@@ -3,6 +3,7 @@ package teameverywhere.personal.bletest.adapter
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -50,15 +51,26 @@ class LeDeviceListAdapter (
         holder.deviceName.text = deviceName
         holder.deviceAddress.text = deviceAddress
 
+
         holder.imgBtnSelectDevice.setOnClickListener {
             val previousItemPosition = selectedItemPosition
             selectedItemPosition = position
+
 
             if (previousItemPosition != RecyclerView.NO_POSITION) {
                 notifyItemChanged(previousItemPosition)
             }
 
             onItemClicked.selectDevice(selectedItemPosition)
+
+
+            // 선택된 항목의 텍스트 색상 설정
+            if (position == selectedItemPosition) {
+                holder.deviceName.setTextColor(Color.RED) // 선택한 항목은 빨간색으로 변경
+            } else {
+                holder.deviceName.setTextColor(Color.BLACK) // 선택하지 않은 항목은 검은색으로 변경
+            }
+
         }
     }
 
